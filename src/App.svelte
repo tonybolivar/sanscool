@@ -22,7 +22,6 @@
         i++;
       } else {
         clearInterval(typingInterval);
-        // Random wait between 1 and 4 seconds then go to next quote if not hovering
         const randomDelay = Math.floor(Math.random() * 3000) + 1000;
         setTimeout(() => {
           if (!hoveredItem) nextQuote();
@@ -38,6 +37,7 @@
   }
 
   function nextQuote() {
+    if (hoveredItem) return;
     quoteIndex = (quoteIndex + 1) % originalQuotes.length;
     updateQuote(originalQuotes[quoteIndex]);
   }
@@ -46,7 +46,6 @@
     if (hoveredItem === id) return;
     hoveredItem = id;
     
-    // Force animation reset
     headBouncing = false;
     await new Promise(r => setTimeout(r, 10));
     headBouncing = true;
@@ -58,7 +57,6 @@
 
   function handleMouseLeave() {
     hoveredItem = null;
-    // Typing will resume/cycle naturally from startTyping's timeout
   }
 
   function endBounce() {
@@ -80,15 +78,15 @@
   $: mainOpacity = Math.max(0.1, 1 - (scrollY / 400));
 
   const ASSET_PATH = "/assets/sans/";
-  const HEADS = {
-    normal: ASSET_PATH + "normal.png",
-    grin_look_left: ASSET_PATH + "grin_look_left.png",
-    grin_look_right: ASSET_PATH + "grin_look_right.png"
-  };
-  const BODIES = {
-    idle: ASSET_PATH + "torso_idle.png",
-    shrug: ASSET_PATH + "torso_shrug.png"
-  };
+  const HEADS = [
+    { id: 'normal', src: ASSET_PATH + "normal.png" },
+    { id: 'grin_look_left', src: ASSET_PATH + "grin_look_left.png" },
+    { id: 'grin_look_right', src: ASSET_PATH + "grin_look_right.png" }
+  ];
+  const BODIES = [
+    { id: 'idle', src: ASSET_PATH + "torso_idle.png" },
+    { id: 'shrug', src: ASSET_PATH + "torso_shrug.png" }
+  ];
   const LEGS = ASSET_PATH + "leg.png";
   const TABLE = "https://via.placeholder.com/320x100/4a2c2a/FFFFFF?text=TABLE";
 </script>
@@ -96,7 +94,6 @@
 <svelte:window bind:scrollY={scrollY} />
 
 <Layout {scrollToTop}>
-  <!-- Main Hero Section -->
   <section class="hero" style="opacity: {mainOpacity}; pointer-events: {mainOpacity < 0.2 ? 'none' : 'auto'}">
     <div class="sans-container">
       <h1 class="header-text">sans.cool</h1>
@@ -104,14 +101,20 @@
       <div class="scene-row">
         <div class="sans-group">
           <div class="sans-parts">
-            <img 
-              src={HEADS[currentQuoteObj.head] || HEADS.normal} 
-              alt="Head" 
-              class="sans-head" 
-              class:bounce={headBouncing} 
-              on:animationend={endBounce}
-            />
-            <img src={BODIES[currentQuoteObj.body] || BODIES.idle} alt="Body" class="sans-body" />
+            <!-- Container for Head Animations to Sync -->
+            <div class="head-container" class:bounce={headBouncing} on:animationend={endBounce}>
+              {#each HEADS as head}
+                <img src={head.src} alt="Head" class="head-sprite" class:visible={currentQuoteObj.head === head.id} />
+              {/each}
+            </div>
+
+            <!-- Container for Body Animations to Sync -->
+            <div class="body-container">
+              {#each BODIES as body}
+                <img src={body.src} alt="Body" class="body-sprite" class:visible={currentQuoteObj.body === body.id} />
+              {/each}
+            </div>
+
             <img src={LEGS} alt="Legs" class="sans-legs" />
           </div>
           <img src={TABLE} alt="Table" class="table-sprite" />
@@ -124,28 +127,25 @@
     </div>
 
     <div class="scroll-hint">
-      <div class="arrow-pulsing">
-        <span>▼</span>
-        <span>▼</span>
-        <span>▼</span>
-      </div>
+      <div class="arrow-pulsing"><span>▼</span><span>▼</span><span>▼</span></div>
       <p>scroll down</p>
     </div>
   </section>
 
-  <!-- Sticky Header -->
   <div class="sticky-header" class:visible={isScrolled}>
     <div class="sticky-content">
       <div class="mini-sans-group">
         <div class="mini-parts">
-          <img 
-            src={HEADS[currentQuoteObj.head] || HEADS.normal} 
-            alt="Head" 
-            class="mini-head" 
-            class:bounce={headBouncing}
-            on:animationend={endBounce}
-          />
-          <img src={BODIES[currentQuoteObj.body] || BODIES.idle} alt="Body" class="mini-body" />
+          <div class="mini-head-container" class:bounce={headBouncing} on:animationend={endBounce}>
+            {#each HEADS as head}
+              <img src={head.src} alt="Head" class="mini-head-sprite" class:visible={currentQuoteObj.head === head.id} />
+            {/each}
+          </div>
+          <div class="mini-body-container">
+            {#each BODIES as body}
+              <img src={body.src} alt="Body" class="mini-body-sprite" class:visible={currentQuoteObj.body === body.id} />
+            {/each}
+          </div>
           <img src={LEGS} alt="Legs" class="mini-legs" />
         </div>
       </div>
@@ -155,269 +155,109 @@
     </div>
   </div>
 
-  <!-- Content Section -->
   <section class="content-section">
     <div class="container">
       <h2 on:mouseenter={() => handleHover('feature-1')} on:mouseleave={handleMouseLeave}>Our "Features"</h2>
       <div class="grid">
         <div class="card" on:mouseenter={() => handleHover('feature-1')} on:mouseleave={handleMouseLeave}>
-          <h3>Bad Puns</h3>
-          <p>They're humerus. You'll love them.</p>
+          <h3>Bad Puns</h3><p>They're humerus. You'll love them.</p>
         </div>
         <div class="card" on:mouseenter={() => handleHover('feature-2')} on:mouseleave={handleMouseLeave}>
-          <h3>Ketchup</h3>
-          <p>Industry standard condiment integration.</p>
+          <h3>Ketchup</h3><p>Industry standard condiment integration.</p>
         </div>
         <div class="card" on:mouseenter={() => handleHover('feature-3')} on:mouseleave={handleMouseLeave}>
-          <h3>Shortcuts</h3>
-          <p>I know a guy who knows a guy.</p>
+          <h3>Shortcuts</h3><p>I know a guy who knows a guy.</p>
         </div>
       </div>
-
       <div class="spacer"></div>
-
       <h2 on:mouseenter={() => handleHover('pricing')} on:mouseleave={handleMouseLeave}>Fair Pricing</h2>
       <div class="pricing-table" on:mouseenter={() => handleHover('pricing')} on:mouseleave={handleMouseLeave}>
         <div class="price-row"><span>Soul</span> <span>9999G</span></div>
         <div class="price-row"><span>Fried Snow</span> <span>5G</span></div>
         <div class="price-row"><span>Actually Nothing</span> <span>Free</span></div>
       </div>
-
       <div class="spacer"></div>
-
-      <footer on:mouseenter={() => handleHover('footer')} on:mouseleave={handleMouseLeave}>
-        <p>* don't forget to like and subscribe to my timeline.</p>
-      </footer>
+      <footer><p>* don't forget to like and subscribe to my timeline.</p></footer>
     </div>
   </section>
 </Layout>
 
 <style>
-  .hero {
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    position: relative;
-    z-index: 10;
-    background-color: #000;
+  .hero { height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; z-index: 10; background-color: #000; }
+  .header-text { font-family: 'Press Start 2P', cursive; font-size: 48px; margin-bottom: 40px; text-shadow: 4px 4px #000; color: #fff !important; text-align: center; }
+  .scene-row { display: flex; align-items: center; gap: 30px; }
+  .sans-group { display: flex; flex-direction: column; align-items: center; }
+  .sans-parts { position: relative; width: 230px; height: 280px; display: flex; flex-direction: column; align-items: center; }
+
+  /* New containers for synced animations */
+  .head-container {
+    position: absolute; top: 32px; z-index: 3;
+    width: 72px; height: 72px;
+    animation: head-idle 6s ease-in-out infinite;
+    display: flex; justify-content: center;
+  }
+  .head-container.bounce { animation: head-bounce-once 0.4s ease-out forwards; }
+
+  .body-container {
+    position: absolute; top: 90px; z-index: 2;
+    width: 175px; height: 100px;
+    animation: body-idle 6s ease-in-out infinite;
+    display: flex; justify-content: center;
   }
 
-  .header-text {
-    font-family: 'Press Start 2P', cursive;
-    font-size: 48px;
-    margin-bottom: 40px;
-    text-shadow: 4px 4px #000;
-    color: #fff !important;
-    text-align: center;
+  .head-sprite, .body-sprite, .mini-head-sprite, .mini-body-sprite {
+    display: none; width: 100%; image-rendering: pixelated;
+  }
+  .head-sprite.visible, .body-sprite.visible, .mini-head-sprite.visible, .mini-body-sprite.visible {
+    display: block;
   }
 
-  .scene-row {
-    display: flex;
-    align-items: center;
-    gap: 30px; /* Reduced gap */
-  }
+  .sans-legs { width: 115px; image-rendering: pixelated; position: absolute; top: 150px; z-index: 1; }
 
-  .sans-group {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
+  @keyframes head-idle { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+  @keyframes head-bounce-once { 0%, 100% { transform: translateY(0); } 30% { transform: translateY(-6px); } }
+  @keyframes body-idle { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-4px) scaleX(1.04) scaleY(1.01); } }
 
-  .sans-parts {
-    position: relative;
-    width: 230px; /* Increased */
-    height: 280px; /* Increased */
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
+  .table-sprite { display: none; }
+  .dialogue-box { border: 4px solid #fff; background: #000; padding: 20px; width: 450px; min-height: 120px; display: flex; align-items: center; cursor: pointer; z-index: 20; user-select: none; }
+  .quote-text { font-family: 'Press Start 2P', cursive; font-size: 16px; line-height: 1.6; margin: 0; color: #fff !important; text-align: left; }
 
-  .sans-head {
-    width: 72px; /* Increased by 2px */
-    image-rendering: pixelated;
-    position: absolute;
-    top: 32px; /* Raised by 2px */
-    z-index: 3;
+  .sticky-header { position: fixed; top: 0; left: 0; width: 100%; height: 140px; background: rgba(0, 0, 0, 0.95); border-bottom: 2px solid #fff; z-index: 1000; display: flex; justify-content: center; align-items: center; transform: translateY(-110%); transition: transform 0.5s cubic-bezier(0.19, 1, 0.22, 1); }
+  .sticky-header.visible { transform: translateY(0); }
+  .sticky-content { display: flex; align-items: center; justify-content: center; gap: 20px; width: 100%; }
+
+  .mini-sans-group { position: relative; width: 180px; height: 220px; transform: scale(0.6); transform-origin: center center; flex-shrink: 0; margin-right: -30px; }
+  .mini-parts { position: relative; width: 100%; height: 100%; }
+  
+  .mini-head-container {
+    position: absolute; top: 20px; left: 7px; z-index: 3; width: 64px;
     animation: head-idle 6s ease-in-out infinite;
   }
-
-  .sans-head.bounce, .mini-head.bounce {
-    animation: head-bounce-once 0.4s ease-out forwards;
-  }
-
-  @keyframes head-idle {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-3px); } /* Reduced by 2px */
-  }
-
-  @keyframes head-bounce-once {
-    0%, 100% { transform: translateY(0); }
-    30% { transform: translateY(-6px); } /* Less bit higher */
-  }
-
-  .sans-body {
-    width: 175px; /* Bigger */
-    image-rendering: pixelated;
-    position: absolute;
-    top: 90px;
-    z-index: 2;
+  .mini-head-container.bounce { animation: head-bounce-once 0.4s ease-out forwards; }
+  
+  .mini-body-container {
+    position: absolute; top: 75px; left: -35px; z-index: 2; width: 150px;
     animation: body-idle 6s ease-in-out infinite;
   }
+  
+  .mini-legs { position: absolute; width: 100px; top: 125px; left: -10px; z-index: 1; image-rendering: pixelated; }
+  .mini-dialogue { width: 500px; height: 40px; display: flex; align-items: center; flex-shrink: 0; user-select: none; }
+  .mini-dialogue p { font-family: 'Press Start 2P', cursive; font-size: 10px; line-height: 1.4; margin: 0; color: #fff !important; width: 100%; }
 
-  .sans-legs {
-    width: 115px; /* Bigger */
-    image-rendering: pixelated;
-    position: absolute;
-    top: 150px;
-    z-index: 1;
-  }
-
-  @keyframes body-idle {
-    0%, 100% { transform: translateY(0) scale(1); }
-    50% { transform: translateY(-4px) scaleX(1.04) scaleY(1.01); }
-  }
-
-  .table-sprite {
-    display: none;
-  }
-
-  .dialogue-box {
-    border: 4px solid #fff;
-    background: #000;
-    padding: 20px;
-    width: 450px;
-    min-height: 120px;
-    display: flex;
-    align-items: center;
-    cursor: pointer;
-    z-index: 20;
-    user-select: none; /* Prevent text highlighting */
-  }
-
-  .quote-text {
-    font-family: 'Press Start 2P', cursive;
-    font-size: 16px;
-    line-height: 1.6;
-    margin: 0;
-    color: #fff !important;
-    text-align: left;
-  }
-
-  /* Sticky Header */
-  .sticky-header {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 140px;
-    background: rgba(0, 0, 0, 0.95);
-    border-bottom: 2px solid #fff;
-    z-index: 1000;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    transform: translateY(-110%);
-    transition: transform 0.5s cubic-bezier(0.19, 1, 0.22, 1);
-  }
-
-  .sticky-header.visible {
-    transform: translateY(0);
-  }
-
-  .sticky-content {
-    display: flex;
-    align-items: center;
-    justify-content: center; /* Center the whole group */
-    gap: 20px;
-    width: 100%;
-  }
-
-  .mini-sans-group {
-    position: relative;
-    width: 180px;
-    height: 220px;
-    transform: scale(0.6);
-    transform-origin: center center;
-    flex-shrink: 0;
-    margin-right: -30px; /* Adjusted for larger scale */
-  }
-
-  .mini-parts img {
-    position: absolute;
-    image-rendering: pixelated;
-  }
-
-  .mini-head { width: 64px; top: 20px; left: 7px; z-index: 3; animation: head-idle 6s ease-in-out infinite; }
-  .mini-body { width: 150px; top: 75px; left: -35px; z-index: 2; animation: body-idle 6s ease-in-out infinite; }
-  .mini-legs { width: 100px; top: 125px; left: -10px; z-index: 1; }
-
-  .mini-dialogue {
-    width: 500px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    flex-shrink: 0;
-    user-select: none; /* Prevent text highlighting */
-  }
-
-  .mini-dialogue p {
-    font-family: 'Press Start 2P', cursive;
-    font-size: 10px;
-    line-height: 1.4;
-    margin: 0;
-    color: #fff !important;
-    width: 100%;
-  }
-
-  /* Scroll Hint */
-  .scroll-hint {
-    position: absolute;
-    bottom: 30px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-    animation: arrow-pulse 2s infinite;
-  }
-
-  .arrow-pulsing {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-  }
-
+  .scroll-hint { position: absolute; bottom: 30px; display: flex; flex-direction: column; align-items: center; gap: 10px; animation: arrow-pulse 2s infinite; }
+  .arrow-pulsing { display: flex; flex-direction: column; align-items: center; gap: 4px; }
   .arrow-pulsing span { color: #fff; }
   .scroll-hint p { font-family: 'Press Start 2P', cursive; font-size: 10px; color: #888; margin: 0; }
+  @keyframes arrow-pulse { 0%, 100% { opacity: 0.3; transform: translateY(0); } 50% { opacity: 1; transform: translateY(10px); } }
 
-  @keyframes arrow-pulse {
-    0%, 100% { opacity: 0.3; transform: translateY(0); }
-    50% { opacity: 1; transform: translateY(10px); }
-  }
-
-  /* Content */
-  .content-section {
-    padding: 100px 20px;
-    min-height: 150vh;
-    background: #000;
-    color: #fff;
-  }
-
-  .container {
-    max-width: 900px;
-    margin: 0 auto;
-    padding-top: 100px;
-  }
-
+  .content-section { padding: 100px 20px; min-height: 150vh; background: #000; color: #fff; }
+  .container { max-width: 900px; margin: 0 auto; padding-top: 100px; }
   h2 { font-family: 'Press Start 2P', cursive; font-size: 24px; border-bottom: 4px solid #fff; padding-bottom: 10px; margin-bottom: 40px; color: #fff; }
   .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
   .card { border: 2px solid #fff; padding: 20px; transition: background 0.2s; background: #000; }
   .card:hover { background: #111; }
   .card h3 { font-family: 'Press Start 2P', cursive; font-size: 14px; margin-bottom: 10px; color: #4fc3f7; }
   .card p { font-family: 'Press Start 2P', cursive; font-size: 10px; line-height: 1.4; }
-
   .pricing-table { border: 2px solid #fff; padding: 20px; background: #000; }
   .price-row { font-family: 'Press Start 2P', cursive; font-size: 12px; display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 2px dotted #444; }
   .spacer { height: 150px; }

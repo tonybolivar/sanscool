@@ -11,11 +11,11 @@ export const logoHoverCount = writable(0);
 export const showJevil = writable(false);
 export const napstablookActive = writable(false);
 
-export const dialogueLines = [
+export const dialogueLines = writable([
   "* heya. you look like you need enterprise software.",
   "* my prices are a real steal. heh. get it.",
   "* don't worry about the fine print. i'm not reading it either.",
   "* we also offer spamton's PREMIUM DEALS [[BIG SHOT]] tier.",
   "* kris, where the hell are we.",
   "* you're gonna have a good time. probably.",
-];
+]);

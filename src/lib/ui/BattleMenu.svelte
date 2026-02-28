@@ -24,12 +24,10 @@
     fightCount.set(count);
 
     if (count >= 3) {
-      dialogueIndex.set($dialogueLines.indexOf('* you really wanna do this, huh.') !== -1
-        ? $dialogueLines.indexOf('* you really wanna do this, huh.')
-        : 0);
-      // Add the line dynamically
       const lines = [...$dialogueLines];
       lines[0] = '* you really wanna do this, huh.';
+      dialogueLines.set(lines);
+      dialogueIndex.set(0);
       flashScreen = true;
       setTimeout(() => { flashScreen = false; }, 200);
     }
@@ -51,10 +49,12 @@
 
   function handleAct() {
     selectMenu(1);
+    const orig = $dialogueLines[0];
+    dialogueLines.update(l => { const a = [...l]; a[0] = '* (you try to smalltalk. sans is already asleep.)'; return a; });
     dialogueIndex.set(0);
-    const lines = $dialogueLines;
-    // Temporarily override first line
-    lines[0] = '* (you try to smalltalk. sans is already asleep.)';
+    setTimeout(() => {
+      dialogueLines.update(l => { const a = [...l]; a[0] = orig; return a; });
+    }, 5000);
   }
 
   function handleItem() {

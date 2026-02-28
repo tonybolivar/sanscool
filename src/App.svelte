@@ -212,7 +212,7 @@
     display: block;
   }
 
-  .sans-legs { width: 115px; image-rendering: pixelated; position: absolute; top: 150px; z-index: 1; }
+  .sans-legs { width: 115px; image-rendering: pixelated; position: absolute; top: 160px; z-index: 1; }
 
   @keyframes head-idle { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
   @keyframes head-bounce-once { 0%, 100% { transform: translateY(0); } 30% { transform: translateY(-6px); } }

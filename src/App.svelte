@@ -79,7 +79,7 @@
   $: isScrolled = scrollY > 250;
   $: mainOpacity = Math.max(0.1, 1 - (scrollY / 400));
 
-  const ASSET_PATH = "/src/assets/sans/";
+  const ASSET_PATH = "/assets/sans/";
   const HEADS = {
     normal: ASSET_PATH + "normal.png",
     grin_look_left: ASSET_PATH + "grin_look_left.png",

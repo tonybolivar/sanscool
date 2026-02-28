@@ -268,5 +268,19 @@
     .grid { grid-template-columns: 1fr; }
     .dialogue-box { width: 90vw; }
     .sticky-content { width: 95%; gap: 10px; }
+    .header-text { font-size: 28px; margin-bottom: 20px; }
+
+    .sticky-header {
+      top: auto;
+      bottom: 0;
+      border-bottom: none;
+      border-top: 2px solid #fff;
+      transform: translateY(110%);
+      height: 100px;
+    }
+    .sticky-header.visible { transform: translateY(0); }
+    .mini-sans-group { transform: scale(0.4); margin-right: -60px; }
+    .mini-dialogue { width: 70%; }
+    .mini-dialogue p { font-size: 8px; }
   }
 </style>

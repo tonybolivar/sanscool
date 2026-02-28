@@ -23,6 +23,15 @@
     padding: 20px;
     z-index: 2000;
     pointer-events: none;
+    display: flex;
+    justify-content: flex-start;
+  }
+
+  @media (max-width: 768px) {
+    .navbar {
+      justify-content: center;
+      padding: 10px;
+    }
   }
 
   .nav-logo {

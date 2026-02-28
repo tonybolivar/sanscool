@@ -10,6 +10,20 @@
       href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap"
       rel="stylesheet"
     />
+    <style>
+      /* Prevent white flash and force background early */
+      html, body {
+        margin: 0;
+        padding: 0;
+        background-color: #000 !important;
+        color: #fff !important;
+        font-family: 'Press Start 2P', cursive;
+        overflow-x: hidden;
+      }
+      * {
+        box-sizing: border-box;
+      }
+    </style>
   </head>
   <body>
     <div id="app"></div>

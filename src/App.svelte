@@ -1,334 +1,452 @@
 <script>
-  import { onMount, onDestroy } from 'svelte';
-  import { logoHoverCount, showJevil, napstablookActive } from './lib/stores/game.js';
+  import { onMount } from 'svelte';
+  import Layout from './Layout.svelte';
 
-  import Scene from './lib/scene/Scene.svelte';
-  import DialogueBox from './lib/ui/DialogueBox.svelte';
-  import BattleMenu from './lib/ui/BattleMenu.svelte';
-  import SoulCursor from './lib/ui/SoulCursor.svelte';
-  import Features from './lib/sections/Features.svelte';
-  import Pricing from './lib/sections/Pricing.svelte';
-  import Testimonials from './lib/sections/Testimonials.svelte';
-  import Footer from './lib/sections/Footer.svelte';
+  const originalQuotes = [
+    { text: "* heya. you look like you need enterprise software.", head: "normal", body: "idle" },
+    { text: "* my prices are a real steal. heh. get it.", head: "grin_look_left", body: "shrug" },
+    { text: "* don't worry about the fine print. i'm not reading it either.", head: "grin_look_right", body: "idle" },
+    { text: "* we also offer spamton's PREMIUM DEALS [[BIG SHOT]] tier.", head: "normal", body: "shrug" },
+    { text: "* kris, where the hell are we.", head: "grin_look_left", body: "idle" },
+    { text: "* i've got a skeleton crew working on your request. literally.", head: "grin_look_right", body: "shrug" },
+    { text: "* shortcuts are my specialty. mostly the ones that skip the work.", head: "normal", body: "shrug" },
+    { text: "* do you want some fried snow? it's a hot commodity.", head: "grin_look_left", body: "idle" },
+    { text: "* tibia honest, i'm just here for the ketchup breaks.", head: "grin_look_right", body: "shrug" },
+    { text: "* i know a guy who knows a guy. he's a bit... different.", head: "normal", body: "idle" },
+    { text: "* take a seat. i've got a lot of work to do. (none).", head: "grin_look_left", body: "shrug" },
+    { text: "* you're gonna have a good time. probably.", head: "normal", body: "idle" },
+  ];
 
-  let pageLoaded = false;
-  let logoText = 'SANS.EXE';
-  let logoHovers = 0;
-  let napstablookMode = false;
-  let napstablookEmojis = [];
-  let emojiId = 0;
-  let jevilVisible = false;
+  const hoverQuotes = {
+    'feature-1': { text: "* that's a feature. or a bug. i forgot.", head: "grin_look_right", body: "shrug" },
+    'feature-2': { text: "* this one's extra bone-dry. heh.", head: "grin_look_left", body: "shrug" },
+    'feature-3': { text: "* you're really looking at everything, huh?", head: "normal", body: "idle" },
+    'pricing': { text: "* don't look at the price. look at my face.", head: "grin_look_right", body: "idle" },
+    'footer': { text: "* see ya around, kid.", head: "normal", body: "idle" }
+  };
 
-  // Konami code
-  const KONAMI = ['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
-  let konamiProgress = 0;
+  let currentQuoteObj = originalQuotes[0];
+  let quoteIndex = 0;
+  let scrollY = 0;
+  let hoveredItem = null;
+  let headBouncing = false;
 
-  // Napstablook listener
-  let napstaBuffer = '';
+  let displayedText = "";
+  let typingInterval;
 
-  function handleKeydown(e) {
-    // Konami code
-    if (e.key === KONAMI[konamiProgress]) {
-      konamiProgress++;
-      if (konamiProgress === KONAMI.length) {
-        konamiProgress = 0;
-        triggerJevil();
+  function startTyping(text) {
+    if (typingInterval) clearInterval(typingInterval);
+    displayedText = "";
+    let i = 0;
+    typingInterval = setInterval(() => {
+      if (i < text.length) {
+        displayedText += text[i];
+        i++;
+      } else {
+        clearInterval(typingInterval);
+        // Random wait between 1 and 4 seconds then go to next quote if not hovering
+        const randomDelay = Math.floor(Math.random() * 3000) + 1000;
+        setTimeout(() => {
+          if (!hoveredItem) nextQuote();
+        }, randomDelay);
       }
-    } else {
-      konamiProgress = 0;
-    }
+    }, 40);
+  }
 
-    // Napstablook easter egg
-    napstaBuffer += e.key.toLowerCase();
-    if (napstaBuffer.length > 12) napstaBuffer = napstaBuffer.slice(-12);
-    if (napstaBuffer.includes('napstablook')) {
-      napstaBuffer = '';
-      triggerNapstablook();
+  function updateQuote(newQuoteObj) {
+    if (!newQuoteObj) return;
+    currentQuoteObj = newQuoteObj;
+    startTyping(newQuoteObj.text);
+  }
+
+  function nextQuote() {
+    quoteIndex = (quoteIndex + 1) % originalQuotes.length;
+    updateQuote(originalQuotes[quoteIndex]);
+  }
+
+  async function handleHover(id) {
+    if (hoveredItem === id) return;
+    hoveredItem = id;
+    
+    // Force animation reset
+    headBouncing = false;
+    await new Promise(r => setTimeout(r, 10));
+    headBouncing = true;
+
+    if (id && hoverQuotes[id]) {
+      updateQuote(hoverQuotes[id]);
     }
   }
 
-  function triggerJevil() {
-    jevilVisible = true;
-    setTimeout(() => { jevilVisible = false; }, 3000);
+  function handleMouseLeave() {
+    hoveredItem = null;
+    // Typing will resume/cycle naturally from startTyping's timeout
   }
 
-  function triggerNapstablook() {
-    napstablookMode = true;
-    for (let i = 0; i < 8; i++) {
-      const id = emojiId++;
-      const x = 10 + Math.random() * 80;
-      const delay = i * 200;
-      napstablookEmojis = [...napstablookEmojis, { id, x, delay }];
-      setTimeout(() => {
-        napstablookEmojis = napstablookEmojis.filter(e => e.id !== id);
-      }, delay + 2500);
-    }
-    setTimeout(() => { napstablookMode = false; }, 3000);
+  function endBounce() {
+    headBouncing = false;
   }
 
-  function handleLogoHover() {
-    logoHovers++;
-    if (logoHovers >= 5) {
-      logoHovers = 0;
-      logoText = 'DELTARUNE';
-      setTimeout(() => { logoText = 'SANS.EXE'; }, 1000);
-    }
+  function scrollToTop() {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   onMount(() => {
-    // Boot fade-in
-    setTimeout(() => { pageLoaded = true; }, 100);
-    window.addEventListener('keydown', handleKeydown);
+    updateQuote(originalQuotes[0]);
+    return () => {
+      if (typingInterval) clearInterval(typingInterval);
+    };
   });
 
-  onDestroy(() => {
-    window.removeEventListener('keydown', handleKeydown);
-  });
+  $: isScrolled = scrollY > 250;
+  $: mainOpacity = Math.max(0.1, 1 - (scrollY / 400));
+
+  const ASSET_PATH = "/src/assets/sans/";
+  const HEADS = {
+    normal: ASSET_PATH + "normal.png",
+    grin_look_left: ASSET_PATH + "grin_look_left.png",
+    grin_look_right: ASSET_PATH + "grin_look_right.png"
+  };
+  const BODIES = {
+    idle: ASSET_PATH + "torso_idle.png",
+    shrug: ASSET_PATH + "torso_shrug.png"
+  };
+  const LEGS = ASSET_PATH + "leg.png";
+  const TABLE = "https://via.placeholder.com/320x100/4a2c2a/FFFFFF?text=TABLE";
 </script>
 
-<svelte:head>
-  <style>
-    *, *::before, *::after {
-      box-sizing: border-box;
-      border-radius: 0 !important;
-    }
+<svelte:window bind:scrollY={scrollY} />
 
-    html {
-      scroll-behavior: auto;
-    }
+<Layout {scrollToTop}>
+  <!-- Main Hero Section -->
+  <section class="hero" style="opacity: {mainOpacity}; pointer-events: {mainOpacity < 0.2 ? 'none' : 'auto'}">
+    <div class="sans-container">
+      <h1 class="header-text">sans.cool</h1>
+      
+      <div class="scene-row">
+        <div class="sans-group">
+          <div class="sans-parts">
+            <img 
+              src={HEADS[currentQuoteObj.head] || HEADS.normal} 
+              alt="Head" 
+              class="sans-head" 
+              class:bounce={headBouncing} 
+              on:animationend={endBounce}
+            />
+            <img src={BODIES[currentQuoteObj.body] || BODIES.idle} alt="Body" class="sans-body" />
+            <img src={LEGS} alt="Legs" class="sans-legs" />
+          </div>
+          <img src={TABLE} alt="Table" class="table-sprite" />
+        </div>
 
-    body {
-      margin: 0;
-      padding: 0;
-      background: #000000;
-      overflow-x: hidden;
-      cursor: none;
-    }
-
-    /* Custom scrollbar */
-    ::-webkit-scrollbar {
-      width: 8px;
-      background: #0d0d1a;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: #ffffff;
-      border: 2px solid #0d0d1a;
-    }
-    ::-webkit-scrollbar-track {
-      background: #0d0d1a;
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      *, *::before, *::after {
-        animation: none !important;
-        transition: none !important;
-      }
-    }
-  </style>
-</svelte:head>
-
-<!-- Boot overlay -->
-{#if !pageLoaded}
-  <div class="boot-overlay"></div>
-{/if}
-
-<!-- SOUL cursor -->
-<SoulCursor />
-
-<!-- Napstablook emojis -->
-{#each napstablookEmojis as em (em.id)}
-  <div
-    class="napsta-emoji"
-    style="left: {em.x}%; animation-delay: {em.delay}ms;"
-    aria-hidden="true"
-  >😢</div>
-{/each}
-
-<!-- Napstablook dim overlay -->
-{#if napstablookMode}
-  <div class="napsta-dim" aria-hidden="true"></div>
-{/if}
-
-<!-- Jevil overlay -->
-{#if jevilVisible}
-  <div class="jevil-overlay" aria-live="assertive">
-    <div class="jevil-text">* I CAN DO ANYTHING</div>
-    <div class="jevil-sub">— JEVIL</div>
-  </div>
-{/if}
-
-<!-- Page wrapper -->
-<div class="page" class:loaded={pageLoaded}>
-  <!-- NAV / LOGO -->
-  <nav class="nav" aria-label="Navigation">
-    <!-- svelte-ignore a11y-mouse-events-have-key-events -->
-    <div
-      class="logo"
-      on:mouseover={handleLogoHover}
-      role="banner"
-      aria-label="SANS.EXE logo"
-    >{logoText}</div>
-    <div class="nav-links">
-      <a href="#features" class="nav-link">* features</a>
-      <a href="#pricing" class="nav-link">* pricing</a>
-      <a href="#testimonials" class="nav-link">* reviews</a>
+        <div class="dialogue-box" on:click={nextQuote} role="button" tabindex="0" on:keydown={(e) => e.key === 'Enter' && nextQuote()}>
+          <p class="quote-text">{displayedText}</p>
+        </div>
+      </div>
     </div>
-  </nav>
 
-  <!-- HERO SCENE -->
-  <main>
-    <Scene />
-    <DialogueBox />
-    <BattleMenu />
-  </main>
+    <div class="scroll-hint">
+      <div class="arrow-pulsing">
+        <span>▼</span>
+        <span>▼</span>
+        <span>▼</span>
+      </div>
+      <p>scroll down</p>
+    </div>
+  </section>
 
-  <!-- SECTIONS -->
-  <div id="features"><Features /></div>
-  <div id="pricing"><Pricing /></div>
-  <div id="testimonials"><Testimonials /></div>
-  <Footer />
-</div>
+  <!-- Sticky Header -->
+  <div class="sticky-header" class:visible={isScrolled}>
+    <div class="sticky-content">
+      <div class="mini-sans-group">
+        <div class="mini-parts">
+          <img 
+            src={HEADS[currentQuoteObj.head] || HEADS.normal} 
+            alt="Head" 
+            class="mini-head" 
+            class:bounce={headBouncing}
+            on:animationend={endBounce}
+          />
+          <img src={BODIES[currentQuoteObj.body] || BODIES.idle} alt="Body" class="mini-body" />
+          <img src={LEGS} alt="Legs" class="mini-legs" />
+        </div>
+      </div>
+      <div class="mini-dialogue">
+        <p class="quote-text">{displayedText}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Content Section -->
+  <section class="content-section">
+    <div class="container">
+      <h2 on:mouseenter={() => handleHover('feature-1')} on:mouseleave={handleMouseLeave}>Our "Features"</h2>
+      <div class="grid">
+        <div class="card" on:mouseenter={() => handleHover('feature-1')} on:mouseleave={handleMouseLeave}>
+          <h3>Bad Puns</h3>
+          <p>They're humerus. You'll love them.</p>
+        </div>
+        <div class="card" on:mouseenter={() => handleHover('feature-2')} on:mouseleave={handleMouseLeave}>
+          <h3>Ketchup</h3>
+          <p>Industry standard condiment integration.</p>
+        </div>
+        <div class="card" on:mouseenter={() => handleHover('feature-3')} on:mouseleave={handleMouseLeave}>
+          <h3>Shortcuts</h3>
+          <p>I know a guy who knows a guy.</p>
+        </div>
+      </div>
+
+      <div class="spacer"></div>
+
+      <h2 on:mouseenter={() => handleHover('pricing')} on:mouseleave={handleMouseLeave}>Fair Pricing</h2>
+      <div class="pricing-table" on:mouseenter={() => handleHover('pricing')} on:mouseleave={handleMouseLeave}>
+        <div class="price-row"><span>Soul</span> <span>9999G</span></div>
+        <div class="price-row"><span>Fried Snow</span> <span>5G</span></div>
+        <div class="price-row"><span>Actually Nothing</span> <span>Free</span></div>
+      </div>
+
+      <div class="spacer"></div>
+
+      <footer on:mouseenter={() => handleHover('footer')} on:mouseleave={handleMouseLeave}>
+        <p>* don't forget to like and subscribe to my timeline.</p>
+      </footer>
+    </div>
+  </section>
+</Layout>
 
 <style>
-  .boot-overlay {
-    position: fixed;
-    inset: 0;
-    background: #000000;
-    z-index: 10000;
-    pointer-events: none;
+  .hero {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    z-index: 10;
+    background-color: #000;
   }
 
-  .page {
-    opacity: 0;
-    transition: opacity 0.8s ease;
-    min-height: 100vh;
-    background: #0d0d1a;
+  .header-text {
+    font-family: 'Press Start 2P', cursive;
+    font-size: 48px;
+    margin-bottom: 40px;
+    text-shadow: 4px 4px #000;
+    color: #fff !important;
+    text-align: center;
   }
 
-  .page.loaded {
-    opacity: 1;
-  }
-
-  /* NAV */
-  .nav {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 40;
-    background: rgba(13, 13, 26, 0.92);
-    border-bottom: 4px solid #ffffff;
-    padding: 12px 24px;
+  .scene-row {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    flex-wrap: wrap;
+    gap: 30px; /* Reduced gap */
   }
 
-  .logo {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 16px;
-    color: #4fc3f7;
-    letter-spacing: 2px;
-    text-shadow: 0 0 12px rgba(79, 195, 247, 0.7);
-    cursor: pointer;
-    user-select: none;
-  }
-
-  .nav-links {
-    display: flex;
-    gap: 24px;
-    flex-wrap: wrap;
-  }
-
-  .nav-link {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 8px;
-    color: #ffffff;
-    text-decoration: none;
-  }
-
-  .nav-link:hover {
-    color: #4fc3f7;
-  }
-
-  /* Napstablook dim */
-  .napsta-dim {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.6);
-    z-index: 300;
-    pointer-events: none;
-    animation: dim-fade 3s ease forwards;
-  }
-
-  @keyframes dim-fade {
-    0%   { opacity: 0; }
-    20%  { opacity: 1; }
-    80%  { opacity: 1; }
-    100% { opacity: 0; }
-  }
-
-  /* Napstablook emojis */
-  .napsta-emoji {
-    position: fixed;
-    bottom: 20%;
-    font-size: 32px;
-    animation: sad-float 2.5s ease-out forwards;
-    z-index: 400;
-    pointer-events: none;
-  }
-
-  @keyframes sad-float {
-    0%   { transform: translateY(0); opacity: 0; }
-    10%  { opacity: 1; }
-    90%  { opacity: 1; }
-    100% { transform: translateY(-120px); opacity: 0; }
-  }
-
-  /* Jevil overlay */
-  .jevil-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.88);
-    z-index: 500;
+  .sans-group {
     display: flex;
     flex-direction: column;
     align-items: center;
+  }
+
+  .sans-parts {
+    position: relative;
+    width: 230px; /* Increased */
+    height: 280px; /* Increased */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .sans-head {
+    width: 72px; /* Increased by 2px */
+    image-rendering: pixelated;
+    position: absolute;
+    top: 32px; /* Raised by 2px */
+    z-index: 3;
+    animation: head-idle 6s ease-in-out infinite;
+  }
+
+  .sans-head.bounce, .mini-head.bounce {
+    animation: head-bounce-once 0.4s ease-out forwards;
+  }
+
+  @keyframes head-idle {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-3px); } /* Reduced by 2px */
+  }
+
+  @keyframes head-bounce-once {
+    0%, 100% { transform: translateY(0); }
+    30% { transform: translateY(-6px); } /* Less bit higher */
+  }
+
+  .sans-body {
+    width: 175px; /* Bigger */
+    image-rendering: pixelated;
+    position: absolute;
+    top: 90px;
+    z-index: 2;
+    animation: body-idle 6s ease-in-out infinite;
+  }
+
+  .sans-legs {
+    width: 115px; /* Bigger */
+    image-rendering: pixelated;
+    position: absolute;
+    top: 150px;
+    z-index: 1;
+  }
+
+  @keyframes body-idle {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-4px) scaleX(1.04) scaleY(1.01); }
+  }
+
+  .table-sprite {
+    display: none;
+  }
+
+  .dialogue-box {
+    border: 4px solid #fff;
+    background: #000;
+    padding: 20px;
+    width: 450px;
+    min-height: 120px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    z-index: 20;
+  }
+
+  .quote-text {
+    font-family: 'Press Start 2P', cursive;
+    font-size: 16px;
+    line-height: 1.6;
+    margin: 0;
+    color: #fff !important;
+    text-align: left;
+  }
+
+  /* Sticky Header */
+  .sticky-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 140px;
+    background: rgba(0, 0, 0, 0.95);
+    border-bottom: 2px solid #fff;
+    z-index: 1000;
+    display: flex;
     justify-content: center;
-    pointer-events: none;
-    animation: jevil-appear 3s ease forwards;
+    align-items: center;
+    transform: translateY(-110%);
+    transition: transform 0.5s cubic-bezier(0.19, 1, 0.22, 1);
   }
 
-  @keyframes jevil-appear {
-    0%   { opacity: 0; }
-    10%  { opacity: 1; }
-    80%  { opacity: 1; }
-    100% { opacity: 0; }
+  .sticky-header.visible {
+    transform: translateY(0);
   }
 
-  .jevil-text {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 24px;
-    color: #ff2222;
-    text-shadow: 0 0 20px rgba(255, 34, 34, 1), 0 0 60px rgba(255, 34, 34, 0.5);
-    animation: jevil-glitch 0.15s step-end infinite;
-    text-align: center;
-    padding: 0 16px;
+  .sticky-content {
+    display: flex;
+    align-items: center;
+    justify-content: center; /* Center the whole group */
+    gap: 20px;
+    width: 100%;
   }
 
-  @keyframes jevil-glitch {
-    0%, 90%, 100% { transform: translateX(0); filter: none; }
-    92%  { transform: translateX(-4px); filter: hue-rotate(180deg); }
-    94%  { transform: translateX(4px); }
-    96%  { transform: translateX(-2px); filter: hue-rotate(90deg); }
+  .mini-sans-group {
+    position: relative;
+    width: 180px;
+    height: 220px;
+    transform: scale(0.6);
+    transform-origin: center center;
+    flex-shrink: 0;
+    margin-right: -30px; /* Adjusted for larger scale */
   }
 
-  .jevil-sub {
-    font-family: 'Press Start 2P', monospace;
+  .mini-parts img {
+    position: absolute;
+    image-rendering: pixelated;
+  }
+
+  .mini-head { width: 64px; top: 20px; left: 7px; z-index: 3; animation: head-idle 6s ease-in-out infinite; }
+  .mini-body { width: 150px; top: 75px; left: -35px; z-index: 2; animation: body-idle 6s ease-in-out infinite; }
+  .mini-legs { width: 100px; top: 125px; left: -10px; z-index: 1; }
+
+  .mini-dialogue {
+    width: 500px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  .mini-dialogue p {
+    font-family: 'Press Start 2P', cursive;
     font-size: 10px;
-    color: #888;
-    margin-top: 16px;
+    line-height: 1.4;
+    margin: 0;
+    color: #fff !important;
+    width: 100%;
+  }
+
+  /* Scroll Hint */
+  .scroll-hint {
+    position: absolute;
+    bottom: 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    animation: arrow-pulse 2s infinite;
+  }
+
+  .arrow-pulsing {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .arrow-pulsing span { color: #fff; }
+  .scroll-hint p { font-family: 'Press Start 2P', cursive; font-size: 10px; color: #888; margin: 0; }
+
+  @keyframes arrow-pulse {
+    0%, 100% { opacity: 0.3; transform: translateY(0); }
+    50% { opacity: 1; transform: translateY(10px); }
+  }
+
+  /* Content */
+  .content-section {
+    padding: 100px 20px;
+    min-height: 150vh;
+    background: #000;
+    color: #fff;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding-top: 100px;
+  }
+
+  h2 { font-family: 'Press Start 2P', cursive; font-size: 24px; border-bottom: 4px solid #fff; padding-bottom: 10px; margin-bottom: 40px; color: #fff; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .card { border: 2px solid #fff; padding: 20px; transition: background 0.2s; background: #000; }
+  .card:hover { background: #111; }
+  .card h3 { font-family: 'Press Start 2P', cursive; font-size: 14px; margin-bottom: 10px; color: #4fc3f7; }
+  .card p { font-family: 'Press Start 2P', cursive; font-size: 10px; line-height: 1.4; }
+
+  .pricing-table { border: 2px solid #fff; padding: 20px; background: #000; }
+  .price-row { font-family: 'Press Start 2P', cursive; font-size: 12px; display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 2px dotted #444; }
+  .spacer { height: 150px; }
+  footer { text-align: center; color: #888; font-size: 12px; border-top: 4px solid #fff; padding-top: 40px; }
+
+  @media (max-width: 768px) {
+    .scene-row { flex-direction: column; }
+    .grid { grid-template-columns: 1fr; }
+    .dialogue-box { width: 90vw; }
+    .sticky-content { width: 95%; gap: 10px; }
   }
 </style>

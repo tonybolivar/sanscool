@@ -123,6 +123,7 @@
   });
 
   $: isScrolled = scrollY > 250;
+  $: if (scrollY > 10 && !hasInteracted) handleInteraction();
   $: mainOpacity = Math.max(0.1, 1 - (scrollY / 400));
 
   const ASSET_PATH = "/assets/sans/";
@@ -142,8 +143,12 @@
 <svelte:window bind:scrollY={scrollY} />
 
 <Layout {scrollToTop}>
-  <audio bind:this={audioTheme} src="/assets/sans/audio/sanstheme.opus"></audio>
-  <audio bind:this={audioTyping} src="/assets/sans/audio/sanstype.opus"></audio>
+  <audio bind:this={audioTheme} loop>
+    <source src="/assets/sans/audio/sanstheme.opus" type="audio/ogg">
+  </audio>
+  <audio bind:this={audioTyping}>
+    <source src="/assets/sans/audio/sanstype.opus" type="audio/ogg">
+  </audio>
 
   <button class="mute-btn" class:scrolled={isScrolled} on:click|stopPropagation={toggleMute} aria-label="Toggle Mute">
     {#if isMuted}

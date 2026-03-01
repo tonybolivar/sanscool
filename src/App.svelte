@@ -30,9 +30,31 @@
     audioTheme.volume = 0.5;
     audioTheme.loop = true;
     audioTheme.muted = isMuted;
-    audioTheme.play().catch(e => {
-      console.log("Autoplay blocked, waiting for interaction.");
-    });
+    
+    const playPromise = audioTheme.play();
+    if (playPromise !== undefined) {
+      playPromise.then(() => {
+        console.log("Playback started successfully.");
+      }).catch(error => {
+        console.log("Playback failed/blocked. Waiting for gesture.", error);
+      });
+    }
+  }
+
+  function handleInteraction() {
+    if (hasInteracted) return;
+    hasInteracted = true;
+    console.log("Valid interaction detected. Unblocking audio.");
+    
+    if (audioTheme) {
+      audioTheme.muted = isMuted;
+      audioTheme.play().catch(e => console.error("Final play attempt failed:", e));
+    }
+    
+    // Cleanup listeners since we only need one interaction to unblock
+    window.removeEventListener('mousedown', handleInteraction);
+    window.removeEventListener('touchstart', handleInteraction);
+    window.removeEventListener('keydown', handleInteraction);
   }
 
   function toggleMute() {
@@ -65,13 +87,6 @@
         }, randomDelay);
       }
     }, 40);
-  }
-
-  function handleInteraction() {
-    if (!hasInteracted) {
-      hasInteracted = true;
-      playTheme();
-    }
   }
 
   function updateQuote(newQuoteObj) {
@@ -116,9 +131,22 @@
   onMount(() => {
     shuffledQuotes = shuffle([...originalQuotes]);
     updateQuote(shuffledQuotes[0]);
+    
+    if (audioTheme) audioTheme.load();
+    if (audioTyping) audioTyping.load();
+
+    window.addEventListener('mousedown', handleInteraction);
+    window.addEventListener('touchstart', handleInteraction);
+    window.addEventListener('keydown', handleInteraction);
+
+    // Initial attempt (will likely be blocked by browser policy)
     playTheme();
+
     return () => {
       if (typingInterval) clearInterval(typingInterval);
+      window.removeEventListener('mousedown', handleInteraction);
+      window.removeEventListener('touchstart', handleInteraction);
+      window.removeEventListener('keydown', handleInteraction);
     };
   });
 

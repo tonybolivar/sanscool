@@ -41,6 +41,64 @@
     }
   }
 
+  let hotdogs = [];
+  let bigHotdogs = [];
+  let clickCount = 0;
+
+  function spawnHotdog() {
+    clickCount++;
+    const now = Date.now();
+    
+    // Giant hotdog event every 10 clicks
+    if (clickCount % 10 === 0) {
+      const off = 100; // Offset to ensure it starts/ends fully off-screen
+      
+      const getPointOnPerimeter = (side) => {
+        if (side === 0) return { x: Math.random() * 100, y: -off }; // Top
+        if (side === 1) return { x: 100 + off, y: Math.random() * 100 }; // Right
+        if (side === 2) return { x: Math.random() * 100, y: 100 + off }; // Bottom
+        return { x: -off, y: Math.random() * 100 }; // Left
+      };
+
+      const sideStart = Math.floor(Math.random() * 4);
+      const sideEnd = (sideStart + Math.floor(Math.random() * 3) + 1) % 4; // Pick a different side
+      
+      const start = getPointOnPerimeter(sideStart);
+      const end = getPointOnPerimeter(sideEnd);
+
+      bigHotdogs = [...bigHotdogs, { 
+        id: `big-${now}`, 
+        sx: start.x, sy: start.y, 
+        ex: end.x, ey: end.y,
+        rot: Math.random() > 0.5 ? 360 : -360
+      }];
+    }
+
+    // Spawn small hotdogs
+    const count = 8;
+    const newSmallOnes = [];
+    for (let i = 0; i < count; i++) {
+      newSmallOnes.push({
+        id: `small-${now}-${i}`,
+        left: Math.random() * 100,
+        duration: 1.2 + Math.random() * 2.5,
+        delay: Math.random() * 0.3,
+        drift: (Math.random() - 0.5) * 40,
+        rotateStart: Math.random() * 360,
+        rotateEnd: Math.random() * 360 + (Math.random() > 0.5 ? 720 : -720)
+      });
+    }
+    hotdogs = [...hotdogs, ...newSmallOnes];
+  }
+
+  function removeHotdog(id, isBig = false) {
+    if (isBig) {
+      bigHotdogs = bigHotdogs.filter(h => h.id !== id);
+    } else {
+      hotdogs = hotdogs.filter(h => h.id !== id);
+    }
+  }
+
   function handleInteraction() {
     if (hasInteracted) return;
     hasInteracted = true;
@@ -178,6 +236,16 @@
     <source src="/assets/sans/audio/sanstype.opus" type="audio/ogg">
   </audio>
 
+  {#each hotdogs as hd (hd.id)}
+    <div 
+      class="hotdog" 
+      style="left: {hd.left}%; --drift: {hd.drift}px; --rot-start: {hd.rotateStart}deg; --rot-end: {hd.rotateEnd}deg; animation-duration: {hd.duration}s; animation-delay: {hd.delay}s;"
+      on:animationend={() => removeHotdog(hd.id)}
+    >
+      <img src="/assets/hotdog/hotdog.png" alt="hotdog" width="45" style="image-rendering: pixelated;" />
+    </div>
+  {/each}
+
   <button class="mute-btn" class:scrolled={isScrolled} on:click|stopPropagation={toggleMute} aria-label="Toggle Mute">
     {#if isMuted}
       <!-- sound-mute (regular) from @hackernoon/pixel-icon-library -->
@@ -196,12 +264,24 @@
   </button>
 
   <section class="hero" style="opacity: {mainOpacity}; pointer-events: {mainOpacity < 0.2 ? 'none' : 'auto'}" on:mousedown={handleInteraction} on:touchstart={handleInteraction}>
+    {#each bigHotdogs as h (h.id)}
+      <div 
+        class="big-hotdog" 
+        style="--sx: {h.sx}vw; --sy: {h.sy}vh; --ex: {h.ex}vw; --ey: {h.ey}vh; --rot: {h.rot}deg;"
+        on:animationend={() => removeHotdog(h.id, true)}
+      >
+        <img src="/assets/hotdog/hotdog.png" alt="giant hotdog" />
+      </div>
+    {/each}
+
     <div class="sans-container">
       <h1 class="header-text">sans.cool</h1>
       
       <div class="scene-row">
         <div class="sans-group">
-          <div class="sans-parts">
+          <!-- svelte-ignore a11y-click-events-have-key-events -->
+          <!-- svelte-ignore a11y-no-static-element-interactions -->
+          <div class="sans-parts no-select" on:click={spawnHotdog}>
             <!-- Container for Head Animations to Sync -->
             <div class="head-container" class:bounce={headBouncing} on:animationend={endBounce}>
               {#each HEADS as head}
@@ -284,7 +364,48 @@
 </Layout>
 
 <style>
-  .hero { height: 100vh; height: 100dvh; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; z-index: 10; background-color: #000; }
+  .hero { height: 100vh; height: 100dvh; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; z-index: 10; overflow: hidden; }
+  .sans-container { position: relative; z-index: 5; display: flex; flex-direction: column; align-items: center; }
+  .no-select { user-select: none; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; outline: none; }
+  .no-select img { pointer-events: none; }
+  
+  .hotdog {
+    position: fixed;
+    top: -50px;
+    z-index: 2000;
+    pointer-events: none;
+    animation: fall linear forwards;
+    image-rendering: pixelated;
+  }
+
+  .big-hotdog {
+    position: fixed;
+    width: 60vw;
+    height: auto;
+    z-index: 1;
+    pointer-events: none;
+    left: 0;
+    top: 0;
+    animation: sweep-universal 5s linear forwards;
+    image-rendering: pixelated;
+    will-change: transform;
+  }
+
+  .big-hotdog img {
+    width: 100%;
+    height: auto;
+  }
+
+  @keyframes sweep-universal {
+    0% { transform: translate(var(--sx), var(--sy)) rotate(0deg); }
+    100% { transform: translate(var(--ex), var(--ey)) rotate(var(--rot)); }
+  }
+
+  @keyframes fall {
+    0% { transform: translateY(0) translateX(0) rotate(var(--rot-start)); }
+    100% { transform: translateY(110vh) translateX(var(--drift)) rotate(var(--rot-end)); }
+  }
+
   .mute-btn { position: fixed; bottom: 20px; left: 20px; background: rgba(0, 0, 0, 0.6); border: 2px solid #fff; color: #fff; padding: 8px; cursor: pointer; z-index: 3000; display: flex; align-items: center; justify-content: center; transition: top 0.3s, bottom 0.3s, left 0.3s, transform 0.3s; }
 
   @media (max-width: 768px) {

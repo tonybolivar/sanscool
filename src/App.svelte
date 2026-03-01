@@ -109,6 +109,17 @@
     }
   }
 
+  function clearAllTimers() {
+    if (typingInterval) {
+      clearInterval(typingInterval);
+      typingInterval = null;
+    }
+    if (quoteTimeout) {
+      clearTimeout(quoteTimeout);
+      quoteTimeout = null;
+    }
+  }
+
   function handleVisibilityChange() {
     isPaused = document.hidden;
     if (isPaused) {
@@ -116,9 +127,10 @@
       clearAllTimers();
     } else {
       if (hasInteracted && audioTheme && !isMuted) audioTheme.play().catch(() => {});
-      if (typingTextTarget && typingIndex < typingTextTarget.length) {
+      // Only resume if we were in the middle of something and not already typing
+      if (typingTextTarget && typingIndex < typingTextTarget.length && !typingInterval) {
         resumeTyping();
-      } else if (!hoveredItem) {
+      } else if (!hoveredItem && !quoteTimeout && !typingInterval) {
         scheduleNextQuote();
       }
     }
@@ -130,6 +142,7 @@
     if (quoteTimeout) clearTimeout(quoteTimeout);
     const randomDelay = Math.floor(Math.random() * 9000) + 3000; // 3 to 12 seconds
     quoteTimeout = setTimeout(() => {
+      quoteTimeout = null;
       if (!hoveredItem && !isPaused) nextQuote();
     }, randomDelay);
   }
@@ -158,7 +171,8 @@
   }
 
   function resumeTyping() {
-    if (typingInterval) clearInterval(typingInterval);
+    if (typingInterval) return; // STRICT GUARD: Prevent double instances
+    
     console.log("Typing started for:", typingTextTarget);
     typingInterval = setInterval(() => {
       if (typingIndex < typingTextTarget.length) {
@@ -171,6 +185,7 @@
         typingIndex++;
       } else {
         clearInterval(typingInterval);
+        typingInterval = null;
         console.log("Typing finished.");
         scheduleNextQuote();
       }
@@ -178,8 +193,7 @@
   }
 
   function startTyping(text) {
-    if (typingInterval) clearInterval(typingInterval);
-    if (quoteTimeout) clearTimeout(quoteTimeout);
+    clearAllTimers();
     typingTextTarget = text;
     typingIndex = 0;
     displayedText = "";
@@ -359,7 +373,9 @@
 
   <div class="sticky-header" class:visible={isScrolled}>
     <div class="sticky-content">
-      <div class="mini-sans-group">
+      <!-- svelte-ignore a11y-click-events-have-key-events -->
+      <!-- svelte-ignore a11y-no-static-element-interactions -->
+      <div class="mini-sans-group no-select" on:click={spawnHotdog}>
         <div class="mini-parts">
           <div class="mini-head-container" class:bounce={headBouncing} on:animationend={endBounce}>
             {#each HEADS as head}
@@ -506,7 +522,7 @@
   .sticky-header.visible { transform: translateY(0); }
   .sticky-content { display: flex; align-items: center; justify-content: center; gap: 20px; width: 100%; }
 
-  .mini-sans-group { position: relative; width: 180px; height: 220px; transform: scale(0.6); transform-origin: center center; flex-shrink: 0; margin-right: -30px; }
+  .mini-sans-group { position: relative; width: 180px; height: 220px; transform: scale(0.6); transform-origin: center center; flex-shrink: 0; margin-right: -30px; cursor: pointer; }
   .mini-parts { position: relative; width: 100%; height: 100%; }
   
   .mini-head-container {

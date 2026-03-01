@@ -11,6 +11,36 @@
 
   let displayedText = "";
   let typingInterval;
+  let audioTheme;
+  let audioTyping;
+  let hasInteracted = false;
+  let isMuted = false;
+  let shuffledQuotes = [...originalQuotes];
+
+  function shuffle(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+  }
+
+  function playTheme() {
+    if (!audioTheme) return;
+    audioTheme.volume = 0.5;
+    audioTheme.loop = true;
+    audioTheme.muted = isMuted;
+    audioTheme.play().catch(e => {
+      console.log("Autoplay blocked, waiting for interaction.");
+    });
+  }
+
+  function toggleMute() {
+    isMuted = !isMuted;
+    if (audioTheme) {
+      audioTheme.muted = isMuted;
+    }
+  }
 
   function startTyping(text) {
     if (typingInterval) clearInterval(typingInterval);
@@ -19,15 +49,29 @@
     typingInterval = setInterval(() => {
       if (i < text.length) {
         displayedText += text[i];
+        // Play sound every 2nd character to make it "slower" than text, and reduce volume
+        if (text[i] !== " " && audioTyping && i % 2 === 0) {
+          audioTyping.currentTime = 0;
+          audioTyping.volume = 0.5;
+          audioTyping.play().catch(() => {});
+        }
         i++;
       } else {
         clearInterval(typingInterval);
-        const randomDelay = Math.floor(Math.random() * 3000) + 1000;
+        // Added 3000ms (3s) to the previous delay range
+        const randomDelay = Math.floor(Math.random() * 3000) + 4000;
         setTimeout(() => {
           if (!hoveredItem) nextQuote();
         }, randomDelay);
       }
     }, 40);
+  }
+
+  function handleInteraction() {
+    if (!hasInteracted) {
+      hasInteracted = true;
+      playTheme();
+    }
   }
 
   function updateQuote(newQuoteObj) {
@@ -37,12 +81,14 @@
   }
 
   function nextQuote() {
+    handleInteraction();
     if (hoveredItem) return;
-    quoteIndex = (quoteIndex + 1) % originalQuotes.length;
-    updateQuote(originalQuotes[quoteIndex]);
+    quoteIndex = (quoteIndex + 1) % shuffledQuotes.length;
+    updateQuote(shuffledQuotes[quoteIndex]);
   }
 
   async function handleHover(id) {
+    handleInteraction();
     if (hoveredItem === id) return;
     hoveredItem = id;
     
@@ -68,7 +114,9 @@
   }
 
   onMount(() => {
-    updateQuote(originalQuotes[0]);
+    shuffledQuotes = shuffle([...originalQuotes]);
+    updateQuote(shuffledQuotes[0]);
+    playTheme();
     return () => {
       if (typingInterval) clearInterval(typingInterval);
     };
@@ -94,7 +142,27 @@
 <svelte:window bind:scrollY={scrollY} />
 
 <Layout {scrollToTop}>
-  <section class="hero" style="opacity: {mainOpacity}; pointer-events: {mainOpacity < 0.2 ? 'none' : 'auto'}">
+  <audio bind:this={audioTheme} src="/assets/sans/audio/sanstheme.opus"></audio>
+  <audio bind:this={audioTyping} src="/assets/sans/audio/sanstype.opus"></audio>
+
+  <button class="mute-btn" class:scrolled={isScrolled} on:click|stopPropagation={toggleMute} aria-label="Toggle Mute">
+    {#if isMuted}
+      <!-- sound-mute (regular) from @hackernoon/pixel-icon-library -->
+      <svg viewBox="0 0 24 24" width="24" height="24">
+        <polygon fill="currentColor" points="22 8 22 10 21 10 21 11 20 11 20 13 21 13 21 14 22 14 22 16 20 16 20 15 19 15 19 14 18 14 18 15 17 15 17 16 15 16 15 14 16 14 16 13 17 13 17 11 16 11 16 10 15 10 15 8 17 8 17 9 18 9 18 10 19 10 19 9 20 9 20 8 22 8"/>
+        <path fill="currentColor" d="m11,2v1h-1v1h-1v1h-1v1h-1v1h-1v1H1v8h5v1h1v1h1v1h1v1h1v1h1v1h3V2h-3ZM3,10h4v-1h1v-1h1v-1h1v-1h1v-1h1v14h-1v-1h-1v-1h-1v-1h-1v-1h-1v-1H3v-4Z"/>
+      </svg>
+    {:else}
+      <!-- sound-on (regular) from @hackernoon/pixel-icon-library -->
+      <svg viewBox="0 0 24 24" width="24" height="24">
+        <polygon fill="currentColor" points="17 15 17 14 16 14 16 13 17 13 17 11 16 11 16 10 17 10 17 9 18 9 18 10 19 10 19 14 18 14 18 15 17 15"/>
+        <polygon fill="currentColor" points="23 10 23 14 22 14 22 16 21 16 21 17 20 17 20 18 19 18 19 17 18 17 18 16 19 16 19 15 20 15 20 14 21 14 21 10 20 10 20 9 19 9 19 8 18 8 18 7 19 7 19 6 20 6 20 7 21 7 21 8 22 8 22 10 23 10"/>
+        <path fill="currentColor" d="m11,2v1h-1v1h-1v1h-1v1h-1v1h-1v1H1v8h5v1h1v1h1v1h1v1h1v1h1v1h3V2h-3Zm1,17h-1v-1h-1v-1h-1v-1h-1v-1h-1v-1H3v-4h4v-1h1v-1h1v-1h1v-1h1v-1h1v14Z"/>
+      </svg>
+    {/if}
+  </button>
+
+  <section class="hero" style="opacity: {mainOpacity}; pointer-events: {mainOpacity < 0.2 ? 'none' : 'auto'}" on:mousedown={handleInteraction} on:touchstart={handleInteraction}>
     <div class="sans-container">
       <h1 class="header-text">sans.cool</h1>
       
@@ -183,7 +251,18 @@
 </Layout>
 
 <style>
-  .hero { height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; z-index: 10; background-color: #000; }
+  .hero { height: 100vh; height: 100dvh; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; z-index: 10; background-color: #000; }
+  .mute-btn { position: fixed; bottom: 20px; left: 20px; background: rgba(0, 0, 0, 0.6); border: 2px solid #fff; color: #fff; padding: 8px; cursor: pointer; z-index: 3000; display: flex; align-items: center; justify-content: center; transition: top 0.3s, bottom 0.3s, left 0.3s, transform 0.3s; }
+
+  @media (max-width: 768px) {
+    .hero { height: auto; min-height: 100dvh; padding-bottom: 120px; padding-top: 60px; }
+    .mute-btn.scrolled {
+      bottom: auto;
+      top: 15px;
+      left: 15px;
+      transform: none;
+    }
+  }
   .header-text { font-family: 'Press Start 2P', cursive; font-size: 48px; margin-bottom: 40px; text-shadow: 4px 4px #000; color: #fff !important; text-align: center; }
   .scene-row { display: flex; align-items: center; gap: 30px; }
   .sans-group { display: flex; flex-direction: column; align-items: center; }
@@ -266,7 +345,7 @@
   @media (max-width: 768px) {
     .scene-row { flex-direction: column; }
     .grid { grid-template-columns: 1fr; }
-    .dialogue-box { width: 90vw; }
+    .dialogue-box { width: 90vw; height: 140px; align-items: flex-start; }
     .sticky-content { width: 95%; gap: 10px; }
     .header-text { font-size: 28px; margin-bottom: 20px; }
 
@@ -280,7 +359,7 @@
     }
     .sticky-header.visible { transform: translateY(0); }
     .mini-sans-group { transform: scale(0.4); margin-right: -60px; }
-    .mini-dialogue { width: 70%; }
+    .mini-dialogue { width: 70%; height: 60px; }
     .mini-dialogue p { font-size: 8px; }
   }
 </style>

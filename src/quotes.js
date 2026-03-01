@@ -11,6 +11,7 @@ export const originalQuotes = [
   { text: "* i know a guy who knows a guy. he's a bit... different.", head: "normal", body: "idle" },
   { text: "* take a seat. i've got a lot of work to do. (none).", head: "grin_look_left", body: "shrug" },
   { text: "* you're gonna have a good time. probably.", head: "normal", body: "idle" },
+  { text: "* hey, watch where you're pointing that cursor. i'm sensitive.", head: "grin_look_left", body: "shrug" },
 ];
 
 export const hoverQuotes = {

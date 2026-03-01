@@ -11,11 +11,15 @@
 
   let displayedText = "";
   let typingInterval;
+  let quoteTimeout;
   let audioTheme;
   let audioTyping;
   let hasInteracted = false;
   let isMuted = false;
+  let isPaused = false;
   let shuffledQuotes = [...originalQuotes];
+  let typingTextTarget = "";
+  let typingIndex = 0;
 
   function shuffle(array) {
     for (let i = array.length - 1; i > 0; i--) {
@@ -51,20 +55,26 @@
     
     // Giant hotdog event every 10 clicks
     if (clickCount % 10 === 0) {
-      const off = 100; // Offset to ensure it starts/ends fully off-screen
+      const off = 50; // Smaller offset since we center the hotdog now
       
-      const getPointOnPerimeter = (side) => {
-        if (side === 0) return { x: Math.random() * 100, y: -off }; // Top
-        if (side === 1) return { x: 100 + off, y: Math.random() * 100 }; // Right
-        if (side === 2) return { x: Math.random() * 100, y: 100 + off }; // Bottom
-        return { x: -off, y: Math.random() * 100 }; // Left
+      const sideStart = Math.floor(Math.random() * 4);
+      const sideEnd = (sideStart + 2) % 4; // Always opposite side to ensure it crosses middle
+      
+      // Stagger coordinates to force a diagonal path on opposite sides
+      const posStart = 10 + Math.random() * 30; // 10% to 40%
+      const posEnd = 60 + Math.random() * 30;   // 60% to 90%
+      // Randomly swap start/end for more variety
+      const [p1, p2] = Math.random() > 0.5 ? [posStart, posEnd] : [posEnd, posStart];
+
+      const getCoord = (side, pos) => {
+        if (side === 0) return { x: pos, y: -off }; // Top
+        if (side === 1) return { x: 100 + off, y: pos }; // Right
+        if (side === 2) return { x: pos, y: 100 + off }; // Bottom
+        return { x: -off, y: pos }; // Left
       };
 
-      const sideStart = Math.floor(Math.random() * 4);
-      const sideEnd = (sideStart + Math.floor(Math.random() * 3) + 1) % 4; // Pick a different side
-      
-      const start = getPointOnPerimeter(sideStart);
-      const end = getPointOnPerimeter(sideEnd);
+      const start = getCoord(sideStart, p1);
+      const end = getCoord(sideEnd, p2);
 
       bigHotdogs = [...bigHotdogs, { 
         id: `big-${now}`, 
@@ -99,6 +109,31 @@
     }
   }
 
+  function handleVisibilityChange() {
+    isPaused = document.hidden;
+    if (isPaused) {
+      if (audioTheme) audioTheme.pause();
+      clearAllTimers();
+    } else {
+      if (hasInteracted && audioTheme && !isMuted) audioTheme.play().catch(() => {});
+      if (typingTextTarget && typingIndex < typingTextTarget.length) {
+        resumeTyping();
+      } else if (!hoveredItem) {
+        scheduleNextQuote();
+      }
+    }
+    // Toggle body class for CSS animations
+    document.body.classList.toggle('paused-animations', isPaused);
+  }
+
+  function scheduleNextQuote() {
+    if (quoteTimeout) clearTimeout(quoteTimeout);
+    const randomDelay = Math.floor(Math.random() * 9000) + 3000; // 3 to 12 seconds
+    quoteTimeout = setTimeout(() => {
+      if (!hoveredItem && !isPaused) nextQuote();
+    }, randomDelay);
+  }
+
   function handleInteraction() {
     if (hasInteracted) return;
     hasInteracted = true;
@@ -122,29 +157,33 @@
     }
   }
 
-  function startTyping(text) {
+  function resumeTyping() {
     if (typingInterval) clearInterval(typingInterval);
-    displayedText = "";
-    let i = 0;
+    console.log("Typing started for:", typingTextTarget);
     typingInterval = setInterval(() => {
-      if (i < text.length) {
-        displayedText += text[i];
-        // Play sound every 2nd character to make it "slower" than text, and reduce volume
-        if (text[i] !== " " && audioTyping && i % 2 === 0) {
+      if (typingIndex < typingTextTarget.length) {
+        displayedText = displayedText + typingTextTarget[typingIndex];
+        if (typingTextTarget[typingIndex] !== " " && audioTyping && typingIndex % 2 === 0) {
           audioTyping.currentTime = 0;
           audioTyping.volume = 0.5;
           audioTyping.play().catch(() => {});
         }
-        i++;
+        typingIndex++;
       } else {
         clearInterval(typingInterval);
-        // Added 3000ms (3s) to the previous delay range
-        const randomDelay = Math.floor(Math.random() * 3000) + 4000;
-        setTimeout(() => {
-          if (!hoveredItem) nextQuote();
-        }, randomDelay);
+        console.log("Typing finished.");
+        scheduleNextQuote();
       }
     }, 40);
+  }
+
+  function startTyping(text) {
+    if (typingInterval) clearInterval(typingInterval);
+    if (quoteTimeout) clearTimeout(quoteTimeout);
+    typingTextTarget = text;
+    typingIndex = 0;
+    displayedText = "";
+    resumeTyping();
   }
 
   function updateQuote(newQuoteObj) {
@@ -175,7 +214,10 @@
   }
 
   function handleMouseLeave() {
-    hoveredItem = null;
+    if (hoveredItem) {
+      hoveredItem = null;
+      scheduleNextQuote();
+    }
   }
 
   function endBounce() {
@@ -196,6 +238,7 @@
     window.addEventListener('mousedown', handleInteraction);
     window.addEventListener('touchstart', handleInteraction);
     window.addEventListener('keydown', handleInteraction);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     // Initial attempt (will likely be blocked by browser policy)
     playTheme();
@@ -205,6 +248,7 @@
       window.removeEventListener('mousedown', handleInteraction);
       window.removeEventListener('touchstart', handleInteraction);
       window.removeEventListener('keydown', handleInteraction);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   });
 
@@ -364,6 +408,9 @@
 </Layout>
 
 <style>
+  :global(body.paused-animations) * {
+    animation-play-state: paused !important;
+  }
   .hero { height: 100vh; height: 100dvh; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; z-index: 10; overflow: hidden; }
   .sans-container { position: relative; z-index: 5; display: flex; flex-direction: column; align-items: center; }
   .no-select { user-select: none; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; outline: none; }
@@ -397,8 +444,8 @@
   }
 
   @keyframes sweep-universal {
-    0% { transform: translate(var(--sx), var(--sy)) rotate(0deg); }
-    100% { transform: translate(var(--ex), var(--ey)) rotate(var(--rot)); }
+    0% { transform: translate(calc(var(--sx) - 50%), calc(var(--sy) - 50%)) rotate(0deg); }
+    100% { transform: translate(calc(var(--ex) - 50%), calc(var(--ey) - 50%)) rotate(var(--rot)); }
   }
 
   @keyframes fall {
